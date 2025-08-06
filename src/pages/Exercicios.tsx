@@ -1,13 +1,24 @@
 import React, { useState } from 'react';
-import { useExercicios, useCreateExercicio } from '../services/api';
+import { useExercicios, useCreateExercicio, useUpdateExercicio, useDeleteExercicio } from '../services/api';
 import type { Exercicio } from '../services/api';
 
 const Exercicios: React.FC = () => {
   const { data: exercicios, isLoading, error } = useExercicios();
   const createExercicioMutation = useCreateExercicio();
+  const updateExercicioMutation = useUpdateExercicio();
+  const deleteExercicioMutation = useDeleteExercicio();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editingExercicio, setEditingExercicio] = useState<Exercicio | null>(null);
   const [newExercicio, setNewExercicio] = useState({
+    nome: '',
+    series: 3,
+    tecnica: '',
+    urlVideo: '',
+    grupoMuscular: '',
+  });
+  const [editExercicio, setEditExercicio] = useState({
     nome: '',
     series: 3,
     tecnica: '',
@@ -29,6 +40,54 @@ const Exercicios: React.FC = () => {
       });
     } catch (error) {
       console.error('Erro ao criar exercício:', error);
+    }
+  };
+
+  const handleEditExercicio = (exercicio: Exercicio) => {
+    setEditingExercicio(exercicio);
+    setEditExercicio({
+      nome: exercicio.nome,
+      series: exercicio.series,
+      tecnica: exercicio.tecnica,
+      urlVideo: exercicio.urlVideo || '',
+      grupoMuscular: exercicio.grupoMuscular,
+    });
+    setShowEditForm(true);
+  };
+
+  const handleUpdateExercicio = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExercicio) return;
+    try {
+      await updateExercicioMutation.mutateAsync({
+        id: editingExercicio._id,
+        exercicio: editExercicio,
+      });
+      setShowEditForm(false);
+      setEditingExercicio(null);
+      setEditExercicio({
+        nome: '',
+        series: 3,
+        tecnica: '',
+        urlVideo: '',
+        grupoMuscular: '',
+      });
+      alert('Exercício atualizado com sucesso! ✅');
+    } catch (error) {
+      console.error('Erro ao atualizar exercício:', error);
+      alert('Erro ao atualizar exercício');
+    }
+  };
+
+  const handleDeleteExercicio = async (id: string) => {
+    if (confirm('Tem certeza que deseja excluir este exercício?')) {
+      try {
+        await deleteExercicioMutation.mutateAsync(id);
+        alert('Exercício excluído com sucesso! 🗑️');
+      } catch (error) {
+        console.error('Erro ao excluir exercício:', error);
+        alert('Erro ao excluir exercício');
+      }
     }
   };
 
@@ -205,6 +264,136 @@ const Exercicios: React.FC = () => {
         </div>
       )}
 
+      {/* Form de edição */}
+      {showEditForm && editingExercicio && (
+        <div className="bg-white shadow-lg rounded-lg p-6 sm:p-8 border border-gray-200">
+          <div className="flex items-center mb-6">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                <span className="text-orange-600 font-semibold">✏️</span>
+              </div>
+            </div>
+            <div className="ml-3">
+              <h2 className="text-xl font-semibold text-gray-900">Editar Exercício</h2>
+              <p className="text-sm text-gray-500">Modifique as informações do exercício</p>
+            </div>
+          </div>
+          <form onSubmit={handleUpdateExercicio} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="edit-nome" className="block text-sm font-medium text-gray-700 mb-2">
+                  Nome do Exercício
+                </label>
+                <input
+                  type="text"
+                  id="edit-nome"
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-500 bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+                  placeholder="Ex: Supino Reto"
+                  value={editExercicio.nome}
+                  onChange={(e) => setEditExercicio({ ...editExercicio, nome: e.target.value })}
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="edit-grupoMuscular" className="block text-sm font-medium text-gray-700 mb-2">
+                  Grupo Muscular
+                </label>
+                <select
+                  id="edit-grupoMuscular"
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+                  value={editExercicio.grupoMuscular}
+                  onChange={(e) => setEditExercicio({ ...editExercicio, grupoMuscular: e.target.value })}
+                >
+                  <option value="">Selecione um grupo muscular</option>
+                  <option value="Peito">Peito</option>
+                  <option value="Costas">Costas</option>
+                  <option value="Pernas">Pernas</option>
+                  <option value="Ombros">Ombros</option>
+                  <option value="Braços">Braços</option>
+                  <option value="Abdome">Abdome</option>
+                  <option value="Cardio">Cardio</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="edit-series" className="block text-sm font-medium text-gray-700 mb-2">
+                  Número de Séries
+                </label>
+                <input
+                  type="number"
+                  id="edit-series"
+                  min="1"
+                  max="10"
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-500 bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+                  value={editExercicio.series}
+                  onChange={(e) => setEditExercicio({ ...editExercicio, series: parseInt(e.target.value) })}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="edit-urlVideo" className="block text-sm font-medium text-gray-700 mb-2">
+                  URL do Vídeo (YouTube)
+                </label>
+                <input
+                  type="url"
+                  id="edit-urlVideo"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-500 bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  value={editExercicio.urlVideo}
+                  onChange={(e) => setEditExercicio({ ...editExercicio, urlVideo: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="edit-tecnica" className="block text-sm font-medium text-gray-700 mb-2">
+                Técnica / Instruções
+              </label>
+              <textarea
+                id="edit-tecnica"
+                rows={3}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-500 bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm resize-vertical"
+                placeholder="Descreva a técnica correta para executar o exercício..."
+                value={editExercicio.tecnica}
+                onChange={(e) => setEditExercicio({ ...editExercicio, tecnica: e.target.value })}
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:justify-end gap-3 pt-4 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditForm(false);
+                  setEditingExercicio(null);
+                  setEditExercicio({
+                    nome: '',
+                    series: 3,
+                    tecnica: '',
+                    urlVideo: '',
+                    grupoMuscular: '',
+                  });
+                }}
+                className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={updateExercicioMutation.isPending}
+                className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50"
+              >
+                {updateExercicioMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Lista de exercícios */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {exercicios?.length > 0 ? (
@@ -248,20 +437,39 @@ const Exercicios: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 text-xs text-gray-500">
-                    <span>
-                      Criado em {new Date(exercicio.criadoEm).toLocaleDateString('pt-BR')}
-                    </span>
-                    {exercicio.urlVideo && !videoId && (
-                      <a
-                        href={exercicio.urlVideo}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 hover:text-indigo-500 self-start"
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 text-xs text-gray-500">
+                      <span>
+                        Criado em {new Date(exercicio.criadoEm).toLocaleDateString('pt-BR')}
+                      </span>
+                      {exercicio.urlVideo && !videoId && (
+                        <a
+                          href={exercicio.urlVideo}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-600 hover:text-indigo-500 self-start"
+                        >
+                          Ver Vídeo
+                        </a>
+                      )}
+                    </div>
+                    
+                    {/* Botões de ação */}
+                    <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-gray-100">
+                      <button
+                        onClick={() => handleEditExercicio(exercicio)}
+                        className="inline-flex items-center justify-center px-3 py-1.5 border border-orange-300 text-xs font-medium rounded text-orange-700 bg-white hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
                       >
-                        Ver Vídeo
-                      </a>
-                    )}
+                        ✏️ Editar
+                      </button>
+                      <button
+                        onClick={() => handleDeleteExercicio(exercicio._id)}
+                        disabled={deleteExercicioMutation.isPending}
+                        className="inline-flex items-center justify-center px-3 py-1.5 border border-red-300 text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                      >
+                        🗑️ Excluir
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

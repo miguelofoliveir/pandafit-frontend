@@ -137,14 +137,48 @@ export const useCreateExercicio = () => {
   });
 };
 
+export const useUpdateExercicio = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, exercicio }: { id: string; exercicio: Partial<Exercicio> }) =>
+      apiRequest(`/exercicios/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(exercicio),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['exercicios'] });
+    },
+  });
+};
+
+export const useDeleteExercicio = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiRequest(`/exercicios/${id}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['exercicios'] });
+    },
+  });
+};
+
 // ================== DIETA ==================
+
+export interface Alimento {
+  nome: string;
+  quantidade: string;
+  calorias: number;
+}
 
 export interface Refeicao {
   _id: string;
   nome: string;
   horario: string;
-  alimentos: string[];
-  calorias: number;
+  alimentos: Alimento[];
   criadoEm: string;
 }
 

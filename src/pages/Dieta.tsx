@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useDieta, useCreateRefeicao, useMarcarComoFeito } from '../services/api';
-import type { Refeicao } from '../services/api';
+import type { Refeicao, Alimento } from '../services/api';
 
 const Dieta: React.FC = () => {
   const { data: refeicoes, isLoading, error } = useDieta();
@@ -11,11 +11,14 @@ const Dieta: React.FC = () => {
   const [newRefeicao, setNewRefeicao] = useState({
     nome: '',
     horario: '',
-    alimentos: [] as string[],
-    calorias: 0,
+    alimentos: [] as Alimento[],
   });
 
-  const [alimentoTemp, setAlimentoTemp] = useState('');
+  const [alimentoTemp, setAlimentoTemp] = useState({
+    nome: '',
+    quantidade: '',
+    calorias: 0,
+  });
 
   const handleCreateRefeicao = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +29,6 @@ const Dieta: React.FC = () => {
         nome: '',
         horario: '',
         alimentos: [],
-        calorias: 0,
       });
     } catch (error) {
       console.error('Erro ao criar refeição:', error);
@@ -34,12 +36,16 @@ const Dieta: React.FC = () => {
   };
 
   const handleAddAlimento = () => {
-    if (alimentoTemp.trim()) {
+    if (alimentoTemp.nome.trim() && alimentoTemp.quantidade.trim() && alimentoTemp.calorias > 0) {
       setNewRefeicao({
         ...newRefeicao,
-        alimentos: [...newRefeicao.alimentos, alimentoTemp.trim()],
+        alimentos: [...newRefeicao.alimentos, { ...alimentoTemp }],
       });
-      setAlimentoTemp('');
+      setAlimentoTemp({
+        nome: '',
+        quantidade: '',
+        calorias: 0,
+      });
     }
   };
 
@@ -64,6 +70,11 @@ const Dieta: React.FC = () => {
     }
   };
 
+  // Função para calcular calorias de uma refeição
+  const calcularCaloriasRefeicao = (alimentos: Alimento[]): number => {
+    return alimentos.reduce((total, alimento) => total + alimento.calorias, 0);
+  };
+
   // Agrupar refeições por horário
   const refeicoesPorHorario = refeicoes?.reduce((acc: { [key: string]: Refeicao[] }, refeicao: Refeicao) => {
     const horario = refeicao.horario;
@@ -75,7 +86,9 @@ const Dieta: React.FC = () => {
   }, {}) || {};
 
   // Calcular calorias totais do dia
-  const caloriasTotaisDia = refeicoes?.reduce((total: number, refeicao: Refeicao) => total + refeicao.calorias, 0) || 0;
+  const caloriasTotaisDia = refeicoes?.reduce((total: number, refeicao: Refeicao) => {
+    return total + calcularCaloriasRefeicao(refeicao.alimentos);
+  }, 0) || 0;
 
   if (isLoading) {
     return (
@@ -144,7 +157,7 @@ const Dieta: React.FC = () => {
             </div>
           </div>
           <form onSubmit={handleCreateRefeicao} className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="nome" className="block text-sm font-medium text-gray-700 mb-2">
                   Nome da Refeição
@@ -173,59 +186,65 @@ const Dieta: React.FC = () => {
                   onChange={(e) => setNewRefeicao({ ...newRefeicao, horario: e.target.value })}
                 />
               </div>
-
-              <div>
-                <label htmlFor="calorias" className="block text-sm font-medium text-gray-700 mb-2">
-                  Calorias
-                </label>
-                <input
-                  type="number"
-                  id="calorias"
-                  min="0"
-                  required
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-500 bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                  placeholder="Ex: 350"
-                  value={newRefeicao.calorias}
-                  onChange={(e) => setNewRefeicao({ ...newRefeicao, calorias: parseInt(e.target.value) || 0 })}
-                />
-              </div>
             </div>
 
             {/* Alimentos */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
                 Alimentos
               </label>
-              <div className="flex flex-col sm:flex-row gap-2 mb-2">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-3">
                 <input
                   type="text"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-500 bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                  placeholder="Ex: Pão integral"
-                  value={alimentoTemp}
-                  onChange={(e) => setAlimentoTemp(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddAlimento())}
+                  className="px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-500 bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                  placeholder="Nome do alimento"
+                  value={alimentoTemp.nome}
+                  onChange={(e) => setAlimentoTemp({ ...alimentoTemp, nome: e.target.value })}
+                />
+                <input
+                  type="text"
+                  className="px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-500 bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                  placeholder="Quantidade"
+                  value={alimentoTemp.quantidade}
+                  onChange={(e) => setAlimentoTemp({ ...alimentoTemp, quantidade: e.target.value })}
+                />
+                <input
+                  type="number"
+                  min="0"
+                  className="px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-500 bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500 sm:text-sm"
+                  placeholder="Calorias"
+                  value={alimentoTemp.calorias || ''}
+                  onChange={(e) => setAlimentoTemp({ ...alimentoTemp, calorias: parseInt(e.target.value) || 0 })}
                 />
                 <button
                   type="button"
                   onClick={handleAddAlimento}
-                  className="inline-flex items-center justify-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:w-auto"
+                  className="inline-flex items-center justify-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                 >
                   Adicionar
                 </button>
               </div>
               
               {newRefeicao.alimentos.length > 0 && (
-                <div className="space-y-1">
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-gray-700 mb-2">
+                    Alimentos adicionados ({calcularCaloriasRefeicao(newRefeicao.alimentos)} calorias):
+                  </div>
                   {newRefeicao.alimentos.map((alimento, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-md"
+                      className="flex items-center justify-between bg-gray-50 px-3 py-3 rounded-md"
                     >
-                      <span className="text-sm text-gray-900">{alimento}</span>
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-900">{alimento.nome}</div>
+                        <div className="text-xs text-gray-600">
+                          {alimento.quantidade} • {alimento.calorias} calorias
+                        </div>
+                      </div>
                       <button
                         type="button"
                         onClick={() => handleRemoveAlimento(index)}
-                        className="text-red-600 hover:text-red-800 text-sm"
+                        className="text-red-600 hover:text-red-800 text-sm font-medium"
                       >
                         Remover
                       </button>
@@ -264,7 +283,7 @@ const Dieta: React.FC = () => {
               <div key={horario} className="bg-white shadow rounded-lg">
                 <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
                   <h3 className="text-lg font-medium text-gray-900">
-                    {horario} - {refeicoesList.reduce((total, r) => total + r.calorias, 0)} calorias
+                    {horario} - {refeicoesList.reduce((total, r) => total + calcularCaloriasRefeicao(r.alimentos), 0)} calorias
                   </h3>
                 </div>
                 <div className="p-4 sm:p-6 space-y-4">
@@ -274,24 +293,29 @@ const Dieta: React.FC = () => {
                       className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 p-4 bg-gray-50 rounded-lg"
                     >
                       <div className="flex-1">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
                           <h4 className="text-lg font-medium text-gray-900">{refeicao.nome}</h4>
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 self-start">
-                            {refeicao.calorias} cal
+                            {calcularCaloriasRefeicao(refeicao.alimentos)} cal
                           </span>
                         </div>
                         
                         {refeicao.alimentos.length > 0 && (
                           <div>
-                            <h5 className="text-sm font-medium text-gray-700 mb-1">Alimentos:</h5>
-                            <ul className="text-sm text-gray-600 space-y-1">
+                            <h5 className="text-sm font-medium text-gray-700 mb-2">Alimentos:</h5>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                               {refeicao.alimentos.map((alimento, index) => (
-                                <li key={index} className="flex items-center">
-                                  <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-                                  {alimento}
-                                </li>
+                                <div key={index} className="flex items-start bg-white p-2 rounded border">
+                                  <span className="w-2 h-2 bg-green-400 rounded-full mr-2 mt-1.5"></span>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium text-gray-900">{alimento.nome}</div>
+                                    <div className="text-xs text-gray-600">
+                                      {alimento.quantidade} • {alimento.calorias} cal
+                                    </div>
+                                  </div>
+                                </div>
                               ))}
-                            </ul>
+                            </div>
                           </div>
                         )}
                       </div>
